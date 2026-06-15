@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  categories    Category[]
+  tasks         Task[]
+  notes         Note[]
+  googleAccount GoogleAccount?
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String
+  color     String?
+  parentId  Int?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Category[] @relation("CategoryTree")
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+  notes     Note[]
+  createdAt DateTime   @default(now())
+}
+
+model Task {
+  id            Int       @id @default(autoincrement())
+  title         String
+  description   String?
+  completed     Boolean   @default(false)
+  dueDate       DateTime?
+  recurringDays Int[]     @default([])
+  categoryId    Int?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Note {
+  id         Int       @id @default(autoincrement())
+  title      String
+  content    String    @default("")
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model GoogleAccount {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String
+  expiryDate   DateTime?
+  googleEmail  String?
+  calendarId   String?
+  createdAt    DateTime  @default(now())
+}
