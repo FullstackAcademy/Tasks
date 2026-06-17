@@ -15,7 +15,7 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { name, color, parentId } = req.body;
+  const { name, color, parentId, image } = req.body;
   if (!name) {
     return res.status(400).json({ error: "Name required" });
   }
@@ -28,7 +28,7 @@ router.post("/", async (req, res) => {
     }
   }
   const category = await prisma.category.create({
-    data: { name, color, parentId: parentId ?? null, userId: req.userId },
+    data: { name, color, image: image ?? null, parentId: parentId ?? null, userId: req.userId },
   });
   res.status(201).json(category);
 });
@@ -41,13 +41,13 @@ router.patch("/:id", async (req, res) => {
   if (!existing) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { name, color, parentId } = req.body;
+  const { name, color, parentId, image } = req.body;
   if (parentId === id) {
     return res.status(400).json({ error: "A category cannot be its own parent" });
   }
   const category = await prisma.category.update({
     where: { id },
-    data: { name, color, parentId },
+    data: { name, color, parentId, image },
   });
   res.json(category);
 });

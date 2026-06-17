@@ -31,11 +31,15 @@ export default function Home() {
 
   const tabs = ["dashboard", "tasks", "notes", "calendar"];
 
+  const activeCategory = selectedCategory
+    ? categories.find((c) => c.id === selectedCategory.id) ?? selectedCategory
+    : null;
+
   return (
     <div className="flex min-h-screen bg-gray-950 text-gray-100">
       <Sidebar
         categories={categories}
-        selectedCategory={selectedCategory}
+        selectedCategory={activeCategory}
         onSelect={setSelectedCategory}
         onChange={loadCategories}
       />
@@ -67,6 +71,23 @@ export default function Home() {
           </div>
         </header>
         <div className="p-6">
+          {activeCategory?.image && (tab === "tasks" || tab === "notes") && (
+            <div
+              className="relative mb-6 h-40 overflow-hidden rounded-2xl bg-cover bg-center ring-1 ring-gray-800"
+              style={{ backgroundImage: `url(${activeCategory.image})` }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-gray-950/90 via-gray-950/30 to-transparent" />
+              <div className="absolute bottom-4 left-5 flex items-center gap-2">
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: activeCategory.color || "#3b82f6" }}
+                />
+                <h2 className="text-xl font-semibold text-white drop-shadow-lg">
+                  {activeCategory.name}
+                </h2>
+              </div>
+            </div>
+          )}
           {tab === "dashboard" && (
             <Dashboard
               tasks={tasks}
@@ -77,12 +98,12 @@ export default function Home() {
           {tab === "tasks" && (
             <Tasks
               tasks={tasks}
-              categoryId={selectedCategory?.id ?? null}
+              categoryId={activeCategory?.id ?? null}
               categories={categories}
               onChanged={loadTasks}
             />
           )}
-          {tab === "notes" && <Notes categoryId={selectedCategory?.id ?? null} />}
+          {tab === "notes" && <Notes categoryId={activeCategory?.id ?? null} />}
           {tab === "calendar" && <Calendar tasks={tasks} />}
         </div>
       </main>

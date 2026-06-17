@@ -1,10 +1,36 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import api from "../api";
 
 function buildTree(categories, parentId = null) {
   return categories
     .filter((c) => c.parentId === parentId)
     .map((c) => ({ ...c, children: buildTree(categories, c.id) }));
+}
+
+function downscaleImage(file, maxDim = 1200, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function CategoryNode({ node, depth, selectedCategory, onSelect }) {
@@ -40,6 +66,8 @@ function CategoryNode({ node, depth, selectedCategory, onSelect }) {
 
 export default function Sidebar({ categories, selectedCategory, onSelect, onChange }) {
   const [name, setName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   const tree = buildTree(categories);
 
@@ -58,6 +86,28 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
     if (selectedCategory?.id === id) {
       onSelect(null);
     }
+    onChange();
+  }
+
+  async function uploadImage(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file || !selectedCategory) return;
+    setUploading(true);
+    try {
+      const image = await downscaleImage(file);
+      await api.patch(`/categories/${selectedCategory.id}`, { image });
+      onChange();
+    } catch {
+      alert("Could not process that image.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeImage() {
+    if (!selectedCategory) return;
+    await api.patch(`/categories/${selectedCategory.id}`, { image: null });
     onChange();
   }
 
@@ -85,14 +135,44 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
           />
         ))}
       </div>
+
       {selectedCategory && (
-        <button
-          onClick={() => deleteCategory(selectedCategory.id)}
-          className="mb-2 rounded-md px-3 py-1.5 text-left text-xs text-red-400 hover:bg-gray-800/60"
-        >
-          Delete "{selectedCategory.name}"
-        </button>
+        <div className="mb-2 space-y-1 border-t border-gray-800 pt-3">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={uploadImage}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="w-full rounded-md px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-800/60 disabled:opacity-50"
+          >
+            {uploading
+              ? "Uploading…"
+              : selectedCategory.image
+              ? "Change photo"
+              : "Add photo"}
+          </button>
+          {selectedCategory.image && (
+            <button
+              onClick={removeImage}
+              className="w-full rounded-md px-3 py-1.5 text-left text-xs text-gray-400 hover:bg-gray-800/60"
+            >
+              Remove photo
+            </button>
+          )}
+          <button
+            onClick={() => deleteCategory(selectedCategory.id)}
+            className="w-full rounded-md px-3 py-1.5 text-left text-xs text-red-400 hover:bg-gray-800/60"
+          >
+            Delete "{selectedCategory.name}"
+          </button>
+        </div>
       )}
+
       <div className="mt-2 border-t border-gray-800 pt-3">
         <p className="mb-2 text-xs text-gray-500">
           {selectedCategory

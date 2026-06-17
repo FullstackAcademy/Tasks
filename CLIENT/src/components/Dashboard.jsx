@@ -141,18 +141,9 @@ export default function Dashboard({ tasks = [], onOpenTasks, onOpenNotes }) {
               const due = new Date(task.dueDate);
               const overdue = due < now;
               return (
-                <li
-                  key={task.id}
-                  className="flex items-center justify-between py-3"
-                >
-                  <span className="truncate pr-4 text-sm text-gray-200">
-                    {task.title}
-                  </span>
-                  <span
-                    className={`shrink-0 text-xs ${
-                      overdue ? "text-red-400" : "text-gray-400"
-                    }`}
-                  >
+                <li key={task.id} className="flex items-center justify-between py-3">
+                  <span className="truncate pr-4 text-sm text-gray-200">{task.title}</span>
+                  <span className={`shrink-0 text-xs ${overdue ? "text-red-400" : "text-gray-400"}`}>
                     {overdue ? "Overdue · " : ""}
                     {due.toLocaleString(undefined, {
                       month: "short",

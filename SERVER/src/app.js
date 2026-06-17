@@ -10,7 +10,7 @@ const icsRoutes = require("./routes/ics");
 const app = express();
 
 app.use(cors({ origin: process.env.CLIENT_URL }));
-app.use(express.json());
+app.use(express.json({ limit: "6mb" }));
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });
