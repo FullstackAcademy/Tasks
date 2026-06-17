@@ -10,7 +10,7 @@ const icsRoutes = require("./routes/ics");
 const app = express();
 
 app.use(cors({ origin: process.env.CLIENT_URL }));
-app.use(express.json({ limit: "6mb" }));
+app.use(express.json({ limit: "12mb" }));
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });
@@ -22,6 +22,7 @@ app.use("/tasks", taskRoutes);
 app.use("/notes", noteRoutes);
 app.use("/google", googleRoutes);
 app.use("/ics", icsRoutes);
+
 
 app.use((err, req, res, next) => {
   console.error(err);

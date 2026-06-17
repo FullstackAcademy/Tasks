@@ -39,6 +39,8 @@ model Task {
   completed     Boolean   @default(false)
   dueDate       DateTime?
   recurringDays Int[]     @default([])
+  recurringInterval Int   @default(1)
+  recurringUntil DateTime?
   categoryId    Int?
   category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   userId        Int

@@ -7,7 +7,7 @@ function buildTree(categories, parentId = null) {
     .map((c) => ({ ...c, children: buildTree(categories, c.id) }));
 }
 
-function downscaleImage(file, maxDim = 1200, quality = 0.8) {
+function downscaleImage(file, maxDim = 3840, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -73,20 +73,28 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
 
   async function addCategory() {
     if (!name.trim()) return;
-    await api.post("/categories", {
-      name: name.trim(),
-      parentId: selectedCategory?.id ?? null,
-    });
-    setName("");
-    onChange();
+    try {
+      await api.post("/categories", {
+        name: name.trim(),
+        parentId: selectedCategory?.id ?? null,
+      });
+      setName("");
+      onChange();
+    } catch (err) {
+      alert(`Couldn't add category: ${err.response?.data?.error ?? err.message}`);
+    }
   }
 
   async function deleteCategory(id) {
-    await api.delete(`/categories/${id}`);
-    if (selectedCategory?.id === id) {
-      onSelect(null);
+    try {
+      await api.delete(`/categories/${id}`);
+      if (selectedCategory?.id === id) {
+        onSelect(null);
+      }
+      onChange();
+    } catch (err) {
+      alert(`Couldn't delete category: ${err.response?.data?.error ?? err.message}`);
     }
-    onChange();
   }
 
   async function uploadImage(e) {
@@ -98,8 +106,8 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
       const image = await downscaleImage(file);
       await api.patch(`/categories/${selectedCategory.id}`, { image });
       onChange();
-    } catch {
-      alert("Could not process that image.");
+    } catch (err) {
+      alert(`Image upload failed: ${err.response?.data?.error ?? err.message}`);
     } finally {
       setUploading(false);
     }
@@ -107,8 +115,12 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
 
   async function removeImage() {
     if (!selectedCategory) return;
-    await api.patch(`/categories/${selectedCategory.id}`, { image: null });
-    onChange();
+    try {
+      await api.patch(`/categories/${selectedCategory.id}`, { image: null });
+      onChange();
+    } catch (err) {
+      alert(`Couldn't remove photo: ${err.response?.data?.error ?? err.message}`);
+    }
   }
 
   return (

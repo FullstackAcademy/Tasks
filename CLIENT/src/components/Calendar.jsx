@@ -9,6 +9,7 @@ export default function Calendar({ tasks = [] }) {
   const [googleEvents, setGoogleEvents] = useState([]);
   const [googleConnected, setGoogleConnected] = useState(false);
 
+  //Inital GOOGLE CONNECT___TRYING TO INTEGRATE, PIA
   async function loadGoogle() {
     try {
       const statusRes = await api.get("/google/status");
@@ -60,7 +61,7 @@ export default function Calendar({ tasks = [] }) {
   return (
     <div>
       <div className="mb-4 flex gap-3">
-        <button
+        <button 
           onClick={connectGoogle}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
         >
