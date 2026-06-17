@@ -33,6 +33,9 @@ export default function Auth() {
         <div className="space-y-4">
           <input
             type="email"
+            name="email"
+            id="email"
+            autoComplete="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -40,6 +43,9 @@ export default function Auth() {
           />
           <input
             type="password"
+            name="password"
+            id="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -57,9 +63,7 @@ export default function Auth() {
           onClick={() => setMode(mode === "login" ? "register" : "login")}
           className="mt-4 w-full text-sm text-gray-400 hover:text-gray-200"
         >
-          {mode === "login"
-            ? "Wanna Use? Sign up"
-            : "Already got one? Sign in"}
+          {mode === "login" ? "Wanna Use? Sign up" : "Already got one? Sign in"}
         </button>
       </div>
     </div>

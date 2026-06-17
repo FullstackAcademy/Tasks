@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import Sidebar from "../components/Sidebar";
+import Dashboard from "../components/Dashboard";
 import Tasks from "../components/Tasks";
 import Notes from "../components/Notes";
 import Calendar from "../components/Calendar";
@@ -10,7 +11,7 @@ export default function Home() {
   const { user, logout } = useAuth();
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [tab, setTab] = useState("tasks");
+  const [tab, setTab] = useState("dashboard");
 
   async function loadCategories() {
     const res = await api.get("/categories");
@@ -21,7 +22,7 @@ export default function Home() {
     loadCategories();
   }, []);
 
-  const tabs = ["tasks", "notes", "calendar"];
+  const tabs = ["dashboard", "tasks", "notes", "calendar"];
 
   return (
     <div className="flex min-h-screen bg-gray-950 text-gray-100">
@@ -33,15 +34,15 @@ export default function Home() {
       />
       <main className="flex-1">
         <header className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
-          <div className="flex gap-2">
+          <div className="inline-flex rounded-xl bg-gray-900 p-1 ring-1 ring-gray-800">
             {tabs.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`rounded-lg px-4 py-2 text-sm capitalize ${
+                className={`rounded-lg px-4 py-1.5 text-sm font-medium capitalize transition ${
                   tab === t
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-400 hover:bg-gray-800"
+                    ? "bg-blue-600 text-white shadow"
+                    : "text-gray-400 hover:text-gray-200"
                 }`}
               >
                 {t}
@@ -59,7 +60,18 @@ export default function Home() {
           </div>
         </header>
         <div className="p-6">
-          {tab === "tasks" && <Tasks categoryId={selectedCategory?.id ?? null} />}
+          {tab === "dashboard" && (
+            <Dashboard
+              onOpenTasks={() => setTab("tasks")}
+              onOpenNotes={() => setTab("notes")}
+            />
+          )}
+          {tab === "tasks" && (
+            <Tasks
+              categoryId={selectedCategory?.id ?? null}
+              categories={categories}
+            />
+          )}
           {tab === "notes" && <Notes categoryId={selectedCategory?.id ?? null} />}
           {tab === "calendar" && <Calendar />}
         </div>
