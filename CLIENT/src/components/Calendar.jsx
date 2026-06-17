@@ -5,39 +5,38 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import api from "../api";
 
-export default function Calendar() {
-  const [events, setEvents] = useState([]);
+export default function Calendar({ tasks = [] }) {
+  const [googleEvents, setGoogleEvents] = useState([]);
   const [googleConnected, setGoogleConnected] = useState(false);
 
-  async function load() {
-    const taskRes = await api.get("/tasks");
-    const taskEvents = taskRes.data
-      .filter((t) => t.dueDate)
-      .map((t) => ({ title: t.title, start: t.dueDate, color: "#3b82f6" }));
-
-    let googleEvents = [];
+  async function loadGoogle() {
     try {
       const statusRes = await api.get("/google/status");
       setGoogleConnected(statusRes.data.connected);
       if (statusRes.data.connected) {
         const eventsRes = await api.get("/google/events");
-        googleEvents = eventsRes.data.map((e) => ({
-          title: e.title,
-          start: e.start,
-          end: e.end,
-          color: "#10b981",
-        }));
+        setGoogleEvents(
+          eventsRes.data.map((e) => ({
+            title: e.title,
+            start: e.start,
+            end: e.end,
+            color: "#10b981",
+          }))
+        );
       }
     } catch {
       setGoogleConnected(false);
     }
-
-    setEvents([...taskEvents, ...googleEvents]);
   }
 
   useEffect(() => {
-    load();
+    loadGoogle();
   }, []);
+
+  const taskEvents = tasks
+    .filter((t) => t.dueDate)
+    .map((t) => ({ title: t.title, start: t.dueDate, color: "#3b82f6" }));
+  const events = [...taskEvents, ...googleEvents];
 
   async function connectGoogle() {
     const res = await api.get("/google/url");

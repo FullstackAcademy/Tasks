@@ -21,21 +21,14 @@ function StatTile({ label, value, chip, text, icon }) {
   );
 }
 
-export default function Dashboard({ onOpenTasks, onOpenNotes }) {
-  const [tasks, setTasks] = useState([]);
+export default function Dashboard({ tasks = [], onOpenTasks, onOpenNotes }) {
   const [noteCount, setNoteCount] = useState(0);
 
-  async function load() {
-    const [taskRes, noteRes] = await Promise.all([
-      api.get("/tasks"),
-      api.get("/notes"),
-    ]);
-    setTasks(taskRes.data);
-    setNoteCount(noteRes.data.length);
-  }
-
   useEffect(() => {
-    load();
+    api
+      .get("/notes")
+      .then((res) => setNoteCount(res.data.length))
+      .catch(() => {});
   }, []);
 
   const now = new Date();

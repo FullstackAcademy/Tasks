@@ -11,6 +11,7 @@ export default function Home() {
   const { user, logout } = useAuth();
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [tasks, setTasks] = useState([]);
   const [tab, setTab] = useState("dashboard");
 
   async function loadCategories() {
@@ -18,8 +19,14 @@ export default function Home() {
     setCategories(res.data);
   }
 
+  async function loadTasks() {
+    const res = await api.get("/tasks");
+    setTasks(res.data);
+  }
+
   useEffect(() => {
     loadCategories();
+    loadTasks();
   }, []);
 
   const tabs = ["dashboard", "tasks", "notes", "calendar"];
@@ -62,18 +69,21 @@ export default function Home() {
         <div className="p-6">
           {tab === "dashboard" && (
             <Dashboard
+              tasks={tasks}
               onOpenTasks={() => setTab("tasks")}
               onOpenNotes={() => setTab("notes")}
             />
           )}
           {tab === "tasks" && (
             <Tasks
+              tasks={tasks}
               categoryId={selectedCategory?.id ?? null}
               categories={categories}
+              onChanged={loadTasks}
             />
           )}
           {tab === "notes" && <Notes categoryId={selectedCategory?.id ?? null} />}
-          {tab === "calendar" && <Calendar />}
+          {tab === "calendar" && <Calendar tasks={tasks} />}
         </div>
       </main>
     </div>
