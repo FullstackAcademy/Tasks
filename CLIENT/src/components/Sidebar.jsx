@@ -7,6 +7,9 @@ function buildTree(categories, parentId = null) {
     .map((c) => ({ ...c, children: buildTree(categories, c.id) }));
 }
 
+// the colors I can pick for a category dot
+const COLORS = ["#3b82f6", "#7c3aed", "#10b981", "#f43f5e", "#f59e0b", "#06b6d4", "#ec4899", "#94a3b8"];
+
 function downscaleImage(file, maxDim = 3840, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -45,6 +48,7 @@ function CategoryNode({ node, depth, selectedCategory, onSelect }) {
             : "text-gray-300 hover:bg-gray-800/60"
         }`}
       >
+        {/* the little dot - color comes from the category itself */}
         <span
           className="h-2.5 w-2.5 rounded-full"
           style={{ backgroundColor: node.color || "#3b82f6" }}
@@ -94,6 +98,17 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
       onChange();
     } catch (err) {
       alert(`Couldn't delete category: ${err.response?.data?.error ?? err.message}`);
+    }
+  }
+
+  // set the dot color for the selected category and save it to the DB
+  async function setColor(hex) {
+    if (!selectedCategory) return;
+    try {
+      await api.patch(`/categories/${selectedCategory.id}`, { color: hex });
+      onChange();
+    } catch (err) {
+      alert(`Couldn't set color: ${err.response?.data?.error ?? err.message}`);
     }
   }
 
@@ -150,6 +165,24 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
 
       {selectedCategory && (
         <div className="mb-2 space-y-1 border-t border-gray-800 pt-3">
+          {/* color picker for the selected category's dot */}
+          <p className="px-3 pb-1 text-xs text-gray-500">Dot color</p>
+          <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1">
+            {COLORS.map((hex) => (
+              <button
+                key={hex}
+                onClick={() => setColor(hex)}
+                aria-label={`Color ${hex}`}
+                style={{ backgroundColor: hex }}
+                className={`h-5 w-5 rounded-full ring-2 ring-offset-2 ring-offset-gray-900 transition ${
+                  (selectedCategory.color || "#3b82f6") === hex
+                    ? "ring-white"
+                    : "ring-transparent hover:ring-gray-600"
+                }`}
+              />
+            ))}
+          </div>
+
           <input
             ref={fileRef}
             type="file"
