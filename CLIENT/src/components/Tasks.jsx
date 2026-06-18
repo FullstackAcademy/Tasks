@@ -3,15 +3,16 @@ import api from "../api";
 
 const pad = (n) => String(n).padStart(2, "0");
 
-// datetime-local string (local) -> UTC ISO, or null
-function localToISO(local) {
+// the field's value (local "YYYY-MM-DDTHH:mm") -> UTC ISO to store
+function toISO(local) {
   if (!local) return null;
   const d = new Date(local);
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-// stored ISO -> "YYYY-MM-DDTHH:mm" in local time, to prefill the input
-function isoToLocal(value) {
+// stored value -> field's "YYYY-MM-DDTHH:mm" in local time (prefills edit)
+function toField(value) {
+  if (!value) return "";
   const d = new Date(value);
   if (isNaN(d.getTime())) return "";
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -19,10 +20,10 @@ function isoToLocal(value) {
 
 export default function Tasks({ tasks = [], categoryId, categories = [], onChanged }) {
   const [title, setTitle] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const [due, setDue] = useState("");
 
   const [editingId, setEditingId] = useState(null);
-  const [editDate, setEditDate] = useState("");
+  const [editDue, setEditDue] = useState("");
 
   const categoryMap = {};
   categories.forEach((c) => {
@@ -35,11 +36,11 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
     if (!title.trim()) return;
     await api.post("/tasks", {
       title: title.trim(),
-      dueDate: localToISO(dueDate),
+      dueDate: toISO(due),
       categoryId: categoryId ?? null,
     });
     setTitle("");
-    setDueDate("");
+    setDue("");
     onChanged();
   }
 
@@ -64,21 +65,21 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
 
   function startEdit(task) {
     setEditingId(task.id);
-    setEditDate(task.dueDate ? isoToLocal(task.dueDate) : "");
+    setEditDue(toField(task.dueDate)); // prefill existing date + time
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setEditDate("");
+    setEditDue("");
   }
 
   async function saveEdit(id) {
-    await api.patch(`/tasks/${id}`, { dueDate: localToISO(editDate) });
+    await api.patch(`/tasks/${id}`, { dueDate: toISO(editDue) });
     cancelEdit();
     onChanged();
   }
 
-  // ---- grouping (Apple/Notion style: Overdue, Today, Upcoming, No date, Completed) ----
+  // grouping: Overdue, Today, Upcoming, No date, Completed
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const endOfToday = new Date(startOfToday);
@@ -97,8 +98,8 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
 
   function card(task) {
     const category = task.categoryId ? categoryMap[task.categoryId] : null;
-    const due = task.dueDate ? new Date(task.dueDate) : null;
-    const overdueFlag = due && !task.completed && due < now;
+    const dueAt = task.dueDate ? new Date(task.dueDate) : null;
+    const overdueFlag = dueAt && !task.completed && dueAt < now;
     const isEditing = editingId === task.id;
     return (
       <div
@@ -131,13 +132,13 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
                   {category.name}
                 </span>
               )}
-              {due ? (
+              {dueAt ? (
                 <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${overdueFlag ? "border-red-500/40 text-red-400" : "border-gray-700 text-gray-300"}`}>
                   <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="9" />
                     <path d="M12 7v5l3 2" />
                   </svg>
-                  {due.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  {dueAt.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </span>
               ) : (
                 <span className="text-xs text-gray-600">No date</span>
@@ -164,14 +165,14 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
               <input
                 type="datetime-local"
                 step="60"
-                value={editDate}
-                onChange={(e) => setEditDate(e.target.value)}
+                value={editDue}
+                onChange={(e) => setEditDue(e.target.value)}
                 className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
               />
               <button onClick={() => saveEdit(task.id)} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500">Save</button>
               <button onClick={cancelEdit} className="rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-gray-800">Cancel</button>
-              {editDate && (
-                <button onClick={() => setEditDate("")} className="rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-800 hover:text-red-400">Clear date</button>
+              {editDue && (
+                <button onClick={() => setEditDue("")} className="rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-800 hover:text-red-400">Clear</button>
               )}
             </div>
           </div>
@@ -215,8 +216,8 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
             <input
               type="datetime-local"
               step="60"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              value={due}
+              onChange={(e) => setDue(e.target.value)}
               className="ml-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
           </label>
