@@ -145,7 +145,7 @@ export default function Home() {
               onChanged={loadTasks}
             />
           )}
-          {tab === "notes" && <Notes categoryId={activeCategory?.id ?? null} />}
+          {tab === "notes" && <Notes categoryId={activeCategory?.id ?? null} categoryName={activeCategory?.name} />}
           {tab === "calendar" && <Calendar tasks={tasks} />}
         </div>
       </main>

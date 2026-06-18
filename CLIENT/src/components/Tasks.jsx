@@ -54,15 +54,6 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
     onChanged();
   }
 
-  async function pushToGoogle(id) {
-    try {
-      await api.post(`/google/push/${id}`);
-      alert("Pushed to Google Calendar");
-    } catch (err) {
-      alert(err.response?.data?.error ?? "Failed to push");
-    }
-  }
-
   function startEdit(task) {
     setEditingId(task.id);
     setEditDue(toField(task.dueDate)); // prefill existing date + time
@@ -150,9 +141,6 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
             <button onClick={() => (isEditing ? cancelEdit() : startEdit(task))} className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-gray-200">
               {isEditing ? "Close" : "Edit"}
             </button>
-            <button onClick={() => pushToGoogle(task.id)} className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-blue-400">
-              → Google
-            </button>
             <button onClick={() => remove(task.id)} className="rounded-lg px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-800 hover:text-red-400">
               Delete
             </button>
@@ -194,11 +182,12 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
   }
 
   const nothing = active.length === 0 && completed.length === 0;
+  const categoryName = categoryId ? (categories.find((c) => c.id === categoryId)?.name ?? null) : null;
 
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-white">Tasks</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-white">{categoryName ?? "Tasks"}</h1>
         <p className="text-sm text-gray-500">{active.length} open · {completed.length} done</p>
       </div>
 

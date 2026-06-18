@@ -1,24 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api";
 
-function Ring({ percent }) {
-  const r = 52;
-  const c = 2 * Math.PI * r;
-  const off = c - (percent / 100) * c;
-  return (
-    <svg viewBox="0 0 120 120" className="h-28 w-28 shrink-0">
-      <circle cx="60" cy="60" r={r} fill="none" stroke="#1f2937" strokeWidth="10" />
-      <circle
-        cx="60" cy="60" r={r} fill="none" stroke="#3b82f6" strokeWidth="10" strokeLinecap="round"
-        strokeDasharray={c} strokeDashoffset={off} transform="rotate(-90 60 60)"
-      />
-      <text x="60" y="60" textAnchor="middle" dominantBaseline="middle" fill="#fff" style={{ fontSize: "24px", fontWeight: 700 }}>
-        {percent}%
-      </text>
-    </svg>
-  );
-}
-
 function Tile({ label, value, chip, icon, onClick }) {
   return (
     <button
@@ -45,8 +27,6 @@ export default function Dashboard({ tasks = [], onOpenTasks, onOpenNotes }) {
 
   const open = tasks.filter((t) => !t.completed).length;
   const done = tasks.filter((t) => t.completed).length;
-  const total = open + done;
-  const percent = total ? Math.round((done / total) * 100) : 0;
 
   const icons = {
     open: (
@@ -73,20 +53,6 @@ export default function Dashboard({ tasks = [], onOpenTasks, onOpenNotes }) {
         <p className="mt-1 text-sm text-gray-500">
           {now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
         </p>
-      </div>
-
-      <div className="mb-4 flex items-center gap-6 rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900 to-gray-950/40 p-6">
-        <Ring percent={percent} />
-        <div className="flex-1">
-          <p className="text-2xl font-bold text-white">
-            {done}
-            <span className="text-gray-500"> / {total}</span>
-          </p>
-          <p className="mb-3 text-sm text-gray-400">tasks complete</p>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
-            <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${percent}%` }} />
-          </div>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
