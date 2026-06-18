@@ -26,7 +26,7 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
     if (!title.trim()) return;
     await api.post("/tasks", {
       title: title.trim(),
-      dueDate: dueDate || null,
+      dueDate: dueDate ? new Date(dueDate).toISOString() : null, // send real UTC, not naive local
       categoryId: categoryId ?? null,
     });
     setTitle("");
@@ -64,7 +64,7 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
   }
 
   async function saveEdit(id) {
-    await api.patch(`/tasks/${id}`, { dueDate: editDate || null });
+    await api.patch(`/tasks/${id}`, { dueDate: editDate ? new Date(editDate).toISOString() : null }); // UTC, fixes time drift
     cancelEdit();
     onChanged();
   }
