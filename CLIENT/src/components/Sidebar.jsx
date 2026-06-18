@@ -9,7 +9,7 @@ function buildTree(categories, parentId = null) {
 
 const COLORS = ["#3b82f6", "#7c3aed", "#10b981", "#f43f5e", "#f59e0b", "#06b6d4", "#ec4899", "#94a3b8"];
 
-// turn a hex color into a faint rgba (for the light matching outline/tint)
+// hex -> faint rgba, for the light outline/tint that matches the dot
 function colorWithAlpha(hex, a) {
   const h = (hex || "#3b82f6").replace("#", "");
   const r = parseInt(h.slice(0, 2), 16);
@@ -47,19 +47,25 @@ function downscaleImage(file, maxDim = 3840, quality = 0.85) {
 function CategoryNode({ node, depth, selectedCategory, onSelect }) {
   const color = node.color || "#3b82f6";          // its dot color
   const active = selectedCategory?.id === node.id; // is it selected
+  const big = depth === 0;                          // top level bigger, subs smaller
   return (
     <div>
       <button
         onClick={() => onSelect(node)}
         style={{
-          marginLeft: `${depth * 12}px`,
+          marginLeft: `${depth * 14}px`,
           borderColor: colorWithAlpha(color, active ? 0.9 : 0.4), // light outline matching the dot
           backgroundColor: active ? colorWithAlpha(color, 0.16) : "rgba(255,255,255,0.02)", // faint tint
         }}
-        className="mb-2 flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left text-sm text-gray-200 transition hover:brightness-125"
+        className={`mb-2 flex w-full items-center gap-3 rounded-xl border text-left transition hover:brightness-125 ${
+          big ? "px-3.5 py-3 text-sm" : "px-3 py-2 text-xs"
+        }`}
       >
-        <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-        <span className="truncate font-medium">{node.name}</span>
+        <span
+          className="shrink-0 rounded-full"
+          style={{ backgroundColor: color, width: big ? 14 : 10, height: big ? 14 : 10 }}
+        />
+        <span className="truncate font-medium text-gray-200">{node.name}</span>
       </button>
       {node.children.map((child) => (
         <CategoryNode
@@ -78,6 +84,30 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
   const [name, setName] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
+
+  // sidebar width, remembered across refresh. drag the right edge to resize.
+  const [width, setWidth] = useState(() => {
+    const saved = Number(localStorage.getItem("sidebarWidth"));
+    return saved >= 220 && saved <= 460 ? saved : 288; // default 288px
+  });
+
+  function startResize(e) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = width;
+    let latest = startW;
+    function onMove(ev) {
+      latest = Math.min(460, Math.max(220, startW + (ev.clientX - startX))); // clamp width
+      setWidth(latest);
+    }
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      localStorage.setItem("sidebarWidth", String(latest)); // remember it
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
 
   const tree = buildTree(categories);
 
@@ -144,7 +174,10 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
   }
 
   return (
-    <aside className="flex w-72 flex-col border-r border-gray-800 bg-gray-900 p-5">
+    <aside
+      style={{ width: `${width}px` }}
+      className="relative flex shrink-0 flex-col border-r border-gray-800 bg-gray-900 p-5"
+    >
       <div className="mb-5">
         <h2 className="text-xl font-bold text-white">TaskFlow</h2>
         <p className="text-xs text-gray-500">Your spaces</p>
@@ -233,6 +266,7 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCategory()}
             placeholder="Category name"
             className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
           />
@@ -244,6 +278,12 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
           </button>
         </div>
       </div>
+
+      <div
+        onPointerDown={startResize}
+        title="Drag to resize"
+        className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize bg-transparent transition hover:bg-blue-500/40"
+      />
     </aside>
   );
 }
