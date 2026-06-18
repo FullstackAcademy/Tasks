@@ -9,6 +9,15 @@ function buildTree(categories, parentId = null) {
 
 const COLORS = ["#3b82f6", "#7c3aed", "#10b981", "#f43f5e", "#f59e0b", "#06b6d4", "#ec4899", "#94a3b8"];
 
+// four tile sizes. 1 = smallest, 4 = biggest
+const SIZE_STYLES = {
+  1: { cls: "px-3 py-1.5 text-xs", dot: 8 },
+  2: { cls: "px-3 py-2 text-xs", dot: 10 },
+  3: { cls: "px-3.5 py-3 text-sm", dot: 12 },
+  4: { cls: "px-4 py-4 text-base", dot: 16 },
+};
+const clampSize = (n) => Math.min(4, Math.max(1, n));
+
 // hex -> faint rgba, for the light outline/tint that matches the dot
 function colorWithAlpha(hex, a) {
   const h = (hex || "#3b82f6").replace("#", "");
@@ -44,27 +53,25 @@ function downscaleImage(file, maxDim = 3840, quality = 0.85) {
   });
 }
 
-function CategoryNode({ node, depth, selectedCategory, onSelect }) {
-  const color = node.color || "#3b82f6";          // its dot color
-  const active = selectedCategory?.id === node.id; // is it selected
-  const big = depth === 0;                          // top level bigger, subs smaller
+function CategoryNode({ node, depth, parentSize, selectedCategory, onSelect, sizeOf }) {
+  const color = node.color || "#3b82f6";
+  const active = selectedCategory?.id === node.id;
+  const raw = sizeOf(node.id, depth === 0 ? 3 : 2);
+  // a sub-category can never be bigger than its parent
+  const size = depth === 0 ? raw : Math.min(raw, parentSize);
+  const s = SIZE_STYLES[size];
   return (
     <div>
       <button
         onClick={() => onSelect(node)}
         style={{
           marginLeft: `${depth * 14}px`,
-          borderColor: colorWithAlpha(color, active ? 0.9 : 0.4), // light outline matching the dot
-          backgroundColor: active ? colorWithAlpha(color, 0.16) : "rgba(255,255,255,0.02)", // faint tint
+          borderColor: colorWithAlpha(color, active ? 0.9 : 0.4),
+          backgroundColor: active ? colorWithAlpha(color, 0.16) : "rgba(255,255,255,0.02)",
         }}
-        className={`mb-2 flex w-full items-center gap-3 rounded-xl border text-left transition hover:brightness-125 ${
-          big ? "px-3.5 py-3 text-sm" : "px-3 py-2 text-xs"
-        }`}
+        className={`mb-2 flex w-full items-center gap-3 rounded-xl border text-left transition hover:brightness-125 ${s.cls}`}
       >
-        <span
-          className="shrink-0 rounded-full"
-          style={{ backgroundColor: color, width: big ? 14 : 10, height: big ? 14 : 10 }}
-        />
+        <span className="shrink-0 rounded-full" style={{ backgroundColor: color, width: s.dot, height: s.dot }} />
         <span className="truncate font-medium text-gray-200">{node.name}</span>
       </button>
       {node.children.map((child) => (
@@ -72,8 +79,10 @@ function CategoryNode({ node, depth, selectedCategory, onSelect }) {
           key={child.id}
           node={child}
           depth={depth + 1}
+          parentSize={size}
           selectedCategory={selectedCategory}
           onSelect={onSelect}
+          sizeOf={sizeOf}
         />
       ))}
     </div>
@@ -88,8 +97,43 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
   // sidebar width, remembered across refresh. drag the right edge to resize.
   const [width, setWidth] = useState(() => {
     const saved = Number(localStorage.getItem("sidebarWidth"));
-    return saved >= 220 && saved <= 460 ? saved : 288; // default 288px
+    return saved >= 220 && saved <= 460 ? saved : 288;
   });
+
+  // per-category tile sizes { [id]: 1..4 }, remembered across refresh
+  const [sizes, setSizes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("catSizes") || "{}");
+    } catch {
+      return {};
+    }
+  });
+
+  const sizeOf = (id, fallback) => sizes[id] ?? fallback;
+
+  const catById = {};
+  categories.forEach((c) => {
+    catById[c.id] = c;
+  });
+
+  // effective size respecting the "never bigger than parent" rule (used to cap a sub's max)
+  function effectiveSizeOf(cat) {
+    if (!cat) return 4;
+    const raw = sizeOf(cat.id, cat.parentId == null ? 3 : 2);
+    if (cat.parentId == null) return raw;
+    return Math.min(raw, effectiveSizeOf(catById[cat.parentId]));
+  }
+
+  function bumpSize(delta) {
+    if (!selectedCategory) return;
+    const current = sizeOf(selectedCategory.id, selectedCategory.parentId == null ? 3 : 2);
+    // top-level can go up to 4; a sub is capped at its parent's effective size
+    const max = selectedCategory.parentId == null ? 4 : effectiveSizeOf(catById[selectedCategory.parentId]);
+    const next = Math.min(max, clampSize(current + delta));
+    const updated = { ...sizes, [selectedCategory.id]: next };
+    setSizes(updated);
+    localStorage.setItem("catSizes", JSON.stringify(updated));
+  }
 
   function startResize(e) {
     e.preventDefault();
@@ -97,13 +141,13 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
     const startW = width;
     let latest = startW;
     function onMove(ev) {
-      latest = Math.min(460, Math.max(220, startW + (ev.clientX - startX))); // clamp width
+      latest = Math.min(460, Math.max(220, startW + (ev.clientX - startX)));
       setWidth(latest);
     }
     function onUp() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      localStorage.setItem("sidebarWidth", String(latest)); // remember it
+      localStorage.setItem("sidebarWidth", String(latest));
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -114,10 +158,7 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
   async function addCategory() {
     if (!name.trim()) return;
     try {
-      await api.post("/categories", {
-        name: name.trim(),
-        parentId: selectedCategory?.id ?? null,
-      });
+      await api.post("/categories", { name: name.trim(), parentId: selectedCategory?.id ?? null });
       setName("");
       onChange();
     } catch (err) {
@@ -128,9 +169,7 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
   async function deleteCategory(id) {
     try {
       await api.delete(`/categories/${id}`);
-      if (selectedCategory?.id === id) {
-        onSelect(null);
-      }
+      if (selectedCategory?.id === id) onSelect(null);
       onChange();
     } catch (err) {
       alert(`Couldn't delete category: ${err.response?.data?.error ?? err.message}`);
@@ -173,6 +212,10 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
     }
   }
 
+  const selectedSize = selectedCategory
+    ? sizeOf(selectedCategory.id, selectedCategory.parentId == null ? 3 : 2)
+    : 0;
+
   return (
     <aside
       style={{ width: `${width}px` }}
@@ -201,8 +244,10 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
             key={node.id}
             node={node}
             depth={0}
+            parentSize={4}
             selectedCategory={selectedCategory}
             onSelect={onSelect}
+            sizeOf={sizeOf}
           />
         ))}
         {tree.length === 0 && (
@@ -211,20 +256,44 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
       </div>
 
       {selectedCategory && (
-        <div className="mb-3 mt-3 space-y-2 rounded-xl border border-gray-800 bg-gray-950/40 p-3">
-          <p className="text-xs font-medium text-gray-400">Dot color</p>
-          <div className="flex flex-wrap items-center gap-2">
-            {COLORS.map((hex) => (
+        <div className="mb-3 mt-3 space-y-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3">
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-gray-400">Size</p>
+            <div className="flex items-center gap-2">
               <button
-                key={hex}
-                onClick={() => setColor(hex)}
-                aria-label={`Color ${hex}`}
-                style={{ backgroundColor: hex }}
-                className={`h-6 w-6 rounded-full ring-2 ring-offset-2 ring-offset-gray-900 transition ${
-                  (selectedCategory.color || "#3b82f6") === hex ? "ring-white" : "ring-transparent hover:ring-gray-600"
-                }`}
-              />
-            ))}
+                onClick={() => bumpSize(-1)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800"
+              >
+                −
+              </button>
+              <span className="min-w-[3.5rem] text-center text-xs text-gray-400">{selectedSize} / 4</span>
+              <button
+                onClick={() => bumpSize(1)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800"
+              >
+                +
+              </button>
+            </div>
+            {selectedCategory.parentId != null && (
+              <p className="mt-1 text-[10px] text-gray-600">Capped at the parent's size</p>
+            )}
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-gray-400">Dot color</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {COLORS.map((hex) => (
+                <button
+                  key={hex}
+                  onClick={() => setColor(hex)}
+                  aria-label={`Color ${hex}`}
+                  style={{ backgroundColor: hex }}
+                  className={`h-6 w-6 rounded-full ring-2 ring-offset-2 ring-offset-gray-900 transition ${
+                    (selectedCategory.color || "#3b82f6") === hex ? "ring-white" : "ring-transparent hover:ring-gray-600"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
 
           <input
@@ -270,10 +339,7 @@ export default function Sidebar({ categories, selectedCategory, onSelect, onChan
             placeholder="Category name"
             className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
           />
-          <button
-            onClick={addCategory}
-            className="rounded-lg bg-blue-600 px-3.5 text-lg text-white hover:bg-blue-500"
-          >
+          <button onClick={addCategory} className="rounded-lg bg-blue-600 px-3.5 text-lg text-white hover:bg-blue-500">
             +
           </button>
         </div>
