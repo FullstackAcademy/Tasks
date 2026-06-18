@@ -133,8 +133,12 @@ export default function Home() {
           {tab === "dashboard" && (
             <Dashboard
               tasks={tasks}
+              categories={categories}
+              category={activeCategory}
               onOpenTasks={() => setTab("tasks")}
               onOpenNotes={() => setTab("notes")}
+              onOpenCategory={(cat) => setSelectedCategory(cat)}
+
             />
           )}
           {tab === "tasks" && (

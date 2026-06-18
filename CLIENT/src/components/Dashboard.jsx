@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api";
 
-// flatten the category tree into ordered rows with a depth (for indenting subs)
+// flatten descendants of `parentId` into ordered rows with relative depth
 function flatten(categories, parentId = null, depth = 0, out = []) {
   categories
     .filter((c) => c.parentId === parentId)
@@ -25,25 +25,30 @@ function Tile({ label, value, chip, icon, onClick }) {
   );
 }
 
-export default function Dashboard({ tasks = [], categories = [], onOpenTasks, onOpenNotes, onOpenCategory }) {
+export default function Dashboard({ tasks = [], categories = [], category = null, onOpenTasks, onOpenNotes, onOpenCategory }) {
   const [notes, setNotes] = useState([]);
 
   useEffect(() => {
     api.get("/notes").then((res) => setNotes(res.data)).catch(() => {});
   }, []);
 
-  const now = new Date();
-  const hour = now.getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const catId = category?.id ?? null;
 
-  const open = tasks.filter((t) => !t.completed).length;
-  const done = tasks.filter((t) => t.completed).length;
+  // everything below reflects the category I'm in (or everything, at the root)
+  const scopedTasks = catId ? tasks.filter((t) => t.categoryId === catId) : tasks;
+  const scopedNotes = catId ? notes.filter((n) => n.categoryId === catId) : notes;
+  const open = scopedTasks.filter((t) => !t.completed).length;
+  const done = scopedTasks.filter((t) => t.completed).length;
 
-  const rows = flatten(categories);
+  const rows = flatten(categories, catId); // sub-spaces of the current category (or all at root)
   const tasksIn = (id) => tasks.filter((t) => t.categoryId === id).length;
   const notesIn = (id) => notes.filter((n) => n.categoryId === id).length;
   const uncatTasks = tasks.filter((t) => !t.categoryId).length;
   const uncatNotes = notes.filter((n) => !n.categoryId).length;
+
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   const icons = {
     open: (
@@ -81,20 +86,44 @@ export default function Dashboard({ tasks = [], categories = [], onOpenTasks, on
 
   return (
     <div className="mx-auto max-w-5xl">
+      {/* header reflects the selected category, or a greeting at the root */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-white">{greeting}</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-        </p>
+        {category ? (
+          <>
+            <button
+              onClick={() => onOpenCategory?.(null)}
+              className="mb-2 text-xs text-gray-500 transition hover:text-gray-300"
+            >
+              ← All spaces
+            </button>
+            <h1 className="flex items-center gap-3 text-3xl font-bold tracking-tight text-white">
+              <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: category.color || "#3b82f6" }} />
+              {category.name}
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {open} open · {done} done · {scopedNotes.length} {scopedNotes.length === 1 ? "note" : "notes"}
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-3xl font-bold tracking-tight text-white">{greeting}</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+            </p>
+          </>
+        )}
       </div>
 
+      {/* tiles reflect the current scope */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Tile label="Open tasks" value={open} chip="bg-blue-500/15 text-blue-400" icon={icons.open} onClick={onOpenTasks} />
         <Tile label="Completed" value={done} chip="bg-emerald-500/15 text-emerald-400" icon={icons.done} onClick={onOpenTasks} />
-        <Tile label="Notes" value={notes.length} chip="bg-violet-500/15 text-violet-400" icon={icons.notes} onClick={onOpenNotes} />
+        <Tile label="Notes" value={scopedNotes.length} chip="bg-violet-500/15 text-violet-400" icon={icons.notes} onClick={onOpenNotes} />
       </div>
 
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Spaces</h2>
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+        {category ? "Sub-spaces" : "Spaces"}
+      </h2>
       <div className="space-y-2">
         {rows.map((cat) => (
           <CountRow
@@ -107,11 +136,13 @@ export default function Dashboard({ tasks = [], categories = [], onOpenTasks, on
             onClick={() => onOpenCategory?.(cat)}
           />
         ))}
-        {(uncatTasks > 0 || uncatNotes > 0) && (
+        {!category && (uncatTasks > 0 || uncatNotes > 0) && (
           <CountRow color="#6b7280" name="Uncategorized" depth={0} taskN={uncatTasks} noteN={uncatNotes} onClick={() => onOpenCategory?.(null)} />
         )}
-        {rows.length === 0 && uncatTasks === 0 && uncatNotes === 0 && (
-          <p className="text-sm text-gray-500">No categories yet — add one in the sidebar.</p>
+        {rows.length === 0 && (
+          <p className="text-sm text-gray-500">
+            {category ? "No sub-spaces in here." : "No categories yet — add one in the sidebar."}
+          </p>
         )}
       </div>
     </div>
