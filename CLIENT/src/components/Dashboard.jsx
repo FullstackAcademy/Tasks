@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import api from "../api";
 
+// flatten the category tree into ordered rows with a depth (for indenting subs)
+function flatten(categories, parentId = null, depth = 0, out = []) {
+  categories
+    .filter((c) => c.parentId === parentId)
+    .forEach((c) => {
+      out.push({ ...c, depth });
+      flatten(categories, c.id, depth + 1, out);
+    });
+  return out;
+}
+
 function Tile({ label, value, chip, icon, onClick }) {
   return (
     <button
@@ -14,11 +25,11 @@ function Tile({ label, value, chip, icon, onClick }) {
   );
 }
 
-export default function Dashboard({ tasks = [], onOpenTasks, onOpenNotes }) {
-  const [noteCount, setNoteCount] = useState(0);
+export default function Dashboard({ tasks = [], categories = [], onOpenTasks, onOpenNotes, onOpenCategory }) {
+  const [notes, setNotes] = useState([]);
 
   useEffect(() => {
-    api.get("/notes").then((res) => setNoteCount(res.data.length)).catch(() => {});
+    api.get("/notes").then((res) => setNotes(res.data)).catch(() => {});
   }, []);
 
   const now = new Date();
@@ -27,6 +38,12 @@ export default function Dashboard({ tasks = [], onOpenTasks, onOpenNotes }) {
 
   const open = tasks.filter((t) => !t.completed).length;
   const done = tasks.filter((t) => t.completed).length;
+
+  const rows = flatten(categories);
+  const tasksIn = (id) => tasks.filter((t) => t.categoryId === id).length;
+  const notesIn = (id) => notes.filter((n) => n.categoryId === id).length;
+  const uncatTasks = tasks.filter((t) => !t.categoryId).length;
+  const uncatNotes = notes.filter((n) => !n.categoryId).length;
 
   const icons = {
     open: (
@@ -46,6 +63,22 @@ export default function Dashboard({ tasks = [], onOpenTasks, onOpenNotes }) {
     ),
   };
 
+  function CountRow({ color, name, depth, taskN, noteN, onClick }) {
+    return (
+      <button
+        onClick={onClick}
+        className="flex w-full items-center gap-3 rounded-xl border border-gray-800 bg-gray-900 px-4 py-3 text-left transition hover:border-gray-700"
+        style={{ paddingLeft: `${16 + depth * 16}px` }}
+      >
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color || "#6b7280" }} />
+        <span className="flex-1 truncate text-sm font-medium text-gray-200">{name}</span>
+        <span className="shrink-0 text-xs text-gray-400">
+          {taskN} {taskN === 1 ? "task" : "tasks"} · {noteN} {noteN === 1 ? "note" : "notes"}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-8">
@@ -55,10 +88,31 @@ export default function Dashboard({ tasks = [], onOpenTasks, onOpenNotes }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Tile label="Open tasks" value={open} chip="bg-blue-500/15 text-blue-400" icon={icons.open} onClick={onOpenTasks} />
         <Tile label="Completed" value={done} chip="bg-emerald-500/15 text-emerald-400" icon={icons.done} onClick={onOpenTasks} />
-        <Tile label="Notes" value={noteCount} chip="bg-violet-500/15 text-violet-400" icon={icons.notes} onClick={onOpenNotes} />
+        <Tile label="Notes" value={notes.length} chip="bg-violet-500/15 text-violet-400" icon={icons.notes} onClick={onOpenNotes} />
+      </div>
+
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Spaces</h2>
+      <div className="space-y-2">
+        {rows.map((cat) => (
+          <CountRow
+            key={cat.id}
+            color={cat.color}
+            name={cat.name}
+            depth={cat.depth}
+            taskN={tasksIn(cat.id)}
+            noteN={notesIn(cat.id)}
+            onClick={() => onOpenCategory?.(cat)}
+          />
+        ))}
+        {(uncatTasks > 0 || uncatNotes > 0) && (
+          <CountRow color="#6b7280" name="Uncategorized" depth={0} taskN={uncatTasks} noteN={uncatNotes} onClick={() => onOpenCategory?.(null)} />
+        )}
+        {rows.length === 0 && uncatTasks === 0 && uncatNotes === 0 && (
+          <p className="text-sm text-gray-500">No categories yet — add one in the sidebar.</p>
+        )}
       </div>
     </div>
   );

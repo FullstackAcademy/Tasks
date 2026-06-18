@@ -54,6 +54,15 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
     onChanged();
   }
 
+  async function pushToGoogle(id) {
+    try {
+      await api.post(`/google/push/${id}`);
+      alert("Pushed to Google Calendar");
+    } catch (err) {
+      alert(err.response?.data?.error ?? "Failed to push");
+    }
+  }
+
   function startEdit(task) {
     setEditingId(task.id);
     setEditDue(toField(task.dueDate)); // prefill existing date + time
@@ -140,6 +149,9 @@ export default function Tasks({ tasks = [], categoryId, categories = [], onChang
           <div className="flex shrink-0 items-center gap-1">
             <button onClick={() => (isEditing ? cancelEdit() : startEdit(task))} className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-gray-200">
               {isEditing ? "Close" : "Edit"}
+            </button>
+            <button onClick={() => pushToGoogle(task.id)} className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-blue-400">
+              → Google
             </button>
             <button onClick={() => remove(task.id)} className="rounded-lg px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-800 hover:text-red-400">
               Delete

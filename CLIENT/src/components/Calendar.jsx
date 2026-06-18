@@ -5,7 +5,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import api from "../api";
 
-// new--ish styling for FullCalendar
+// dark, rounded, Apple/Notion-ish styling for FullCalendar
 const calendarStyle = `
   .ff-cal .fc {
     --fc-border-color: #1f2937;
@@ -37,6 +37,7 @@ const calendarStyle = `
 export default function Calendar({ tasks = [] }) {
   const [googleEvents, setGoogleEvents] = useState([]);
   const [googleConnected, setGoogleConnected] = useState(false);
+  const [noteEvents, setNoteEvents] = useState([]);
 
   async function loadGoogle() {
     try {
@@ -53,14 +54,33 @@ export default function Calendar({ tasks = [] }) {
     }
   }
 
+  async function loadNotes() {
+    try {
+      const res = await api.get("/notes");
+      setNoteEvents(
+        res.data.map((n) => ({
+          title: `📝 ${n.title}`,
+          start: n.createdAt, // notes show on the day they were created
+          allDay: true,
+          color: "#f59e0b",
+        }))
+      );
+    } catch {
+      setNoteEvents([]);
+    }
+  }
+
   useEffect(() => {
     loadGoogle();
+    loadNotes();
   }, []);
 
+  // every task with a due date goes on the calendar (blue)
   const taskEvents = tasks
     .filter((t) => t.dueDate)
     .map((t) => ({ title: t.title, start: t.dueDate, color: "#3b82f6" }));
-  const events = [...taskEvents, ...googleEvents];
+
+  const events = [...taskEvents, ...noteEvents, ...googleEvents];
 
   async function connectGoogle() {
     const res = await api.get("/google/url");
@@ -88,8 +108,9 @@ export default function Calendar({ tasks = [] }) {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Calendar</h1>
-          <p className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+          <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-500">
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500" /> Tasks</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" /> Notes</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Google</span>
           </p>
         </div>
